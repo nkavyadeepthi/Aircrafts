@@ -1,0 +1,155 @@
+---
+title: "Assignment1-Lin-Twitter Data Wrangling and Visualization"
+author: "Kavya Deepthi Natta"
+date: "3/10/2021"
+output: html_document
+---
+
+```{r, message=FALSE, warning=FALSE, comment = NA}
+#install.packages("tidyverse") 
+require(tidyverse)
+require(ggplot2)
+#install.packages("RColorBrewer")
+require(RColorBrewer)
+require(ggplot2)
+#install.packages("ggthemes") 
+require(ggthemes)
+```
+
+# AirCraft Costs in USA
+
+## Background:
+
+-The data deals with different types and models of Aircrafts and their costs varying in a timeframe between 1941-1945.
+
+## Data:
+
+-The data that i got is in .csv format and untidy with variables and observations not in order violating tidy data principles.
+Raw Data Consists of:
+
+1.Types of Aircrafts
+
+2.Model of Aircrafts
+
+3.Each year starting from 1941 to 1945 in columns with observation as costs of Aircrafts
+
+So to get it sorted, we need to tidy the data.
+
+## Tidying data/Data Wrangling:
+
+-I had done tidying the data using "tidyr" and "dplyr" libraries by installing "tidyverse" package, sorted all the years into one column and costs into other column, saved the new data in .csv format.
+
+-Also changed the type of year and costs variables to match and try if left join works with two tables, used left join to join two tables to sort out all the NA values in common.
+
+-Used chaining/Pipelining operators
+
+-Then replaced all the NA values not to miss any value keeping it in range of costs.
+
+-along with the above, I also included "separate" and "unite" functions.
+
+-used Mutate function to add a new variable cost without missing null values and replacing it with median of costs, "Costs_Above_average" column = True if
+value is above average.
+
+-Also played around creating tables with filtering the costs above average value of costs.
+
+
+```{r setup, message=FALSE, warning=FALSE, comment = NA}
+getwd()
+list.files()
+setwd("D:/GSU/topics in big data/Assignment-1")
+df = read_csv("Assignment1-Natta-Aircrafts Data Wrangling and Visualization.csv",na=c("-","NA","Not Available",""))
+str(df)
+
+df1<-df %>% pivot_longer(c("1941","1942","1943","1944","1945"),
+                    names_to = "year", values_to = "Costs")
+str(df1)
+write.csv(df1,"newdata.csv", row.names=FALSE)
+df1_na <- read_csv(file = "newdata.csv",na=c("-","NA","Not Available",""))
+str(df1_na)
+df1_na$year <- as.character(df1_na$year)
+table1 <- df1 %>% separate(year, into = c("Century","year"), sep = 2)
+table1
+table2 <-table1 %>% unite(year, Century, year, sep = "") 
+table2
+df1 %>% left_join(df1_na) 
+str(df1)
+
+df1[is.na(df1)] = 0
+df1
+
+median(df1$Costs)
+mean(df1$Costs)
+table3 <- df1 %>% filter(df1$Costs >= mean(df1$Costs)) 
+table3 
+
+finaldf <-df1 %>% mutate(costs_above_average=ifelse(df1$Costs >= mean(df1$Costs), TRUE , FALSE)) 
+finaldf
+finaldf <- finaldf %>% mutate(Costs_without_null = replace(df1$Costs,df1$Costs == 0, mean(df1$Costs)))
+finaldf
+```
+
+# Data Visualization
+
+-basic Plot to check on dispersion of values:
+
+## Interpretation: 
+In the year 1941, Aircraft of Type "Transports" cost was higher with the least of Type "Trainers"
+
+In the year 1942, Aircraft of Type "Transports" cost was higher with the least of Type "Trainers"
+
+In the year 1943, Aircraft of Type "Transports" cost was higher with the least of Type "Trainers"
+
+In the year 1944, Aircraft of Type "Heavy Bombers" cost was higher with the least of Type "Trainers"
+
+In the year 1945, Aircraft of Type "Very Heavy Bombers" cost was higher with the least of Type "Reconnaissance"
+
+
+```{r, message=FALSE, warning=FALSE}
+ggplot(data = finaldf) +   geom_point(mapping = aes(x = year, y = Costs_without_null*0.001, color=Type,size = Type))+
+  geom_smooth(mapping = aes(x = year, y = Costs_without_null, linetype = Type))+ ylab("Cost($K)")+ theme_gdocs() +  scale_color_gdocs()+
+  ggtitle("Plot for types of aircrafts with costs")
+```
+
+## Point plot
+
+-In-depth analysis of the costs when costs are split in facets when costs above average=T and below average= F 
+
+From below graph, Aircrafts of Types "Trainers, Reconnaissance, some of Transports fall under costs of below average value constantly for 5 years. a better visual interpretation 
+to above graph.
+
+```{r pressure, message=FALSE, warning=FALSE}
+#ggplot(data = finaldf) +   geom_smooth(mapping = aes(x = year, y = Costs_without_null*0.001, linetype = Type))
+ggplot(data = finaldf) +   geom_point(mapping = aes(x = year, y = Costs_without_null*0.001, color=Type,size = Type))+
+  geom_smooth(mapping = aes(x = year, y = Costs_without_null*0.001, linetype = Type))+
+  facet_wrap(~costs_above_average)+ylab("Cost($K)")+ggtitle("Plot for types of aircrafts with costs above average")+
+  theme_gdocs() +  scale_color_gdocs()
+```
+
+## Box Plot Interpretation
+
+-Box plot with facets of costs and the year to get an idea on outliers
+
+the outliers of communication types of Aircraft, Trainers has 2 outliers recorded in the year 1941, 1945 and 1942,1944 respectively.
+
+the outliers of Aircraft type "Fighters","Light Bombers" has an outlier recorded in each year from 1941 - 1945
+
+the outliers of Aircraft type "Transports" has 2 outliers recorded in the year 1941 and 1942
+
+There are no outliers recorded for aircraft types- MEdium bombers, Heavy Bombers,Reconnaissance, Very Heavy Bombers.
+
+```{r , message=FALSE, warning=FALSE}
+ggplot(finaldf, aes(x=year, y=Costs_without_null*0.001,fill=Type)) + geom_boxplot()+theme_classic()+ facet_wrap(~ Type, nrow = 4, shrink = FALSE)+
+  scale_fill_brewer(palette = "Blues")+ylab("Cost($K)")+ylim(-100,1500)+ ggtitle("Boxplot for types of aircrafts with costs using facets")
+```
+
+## Scatter Plot
+
+-scatter plot with facets for more clear visualization of costs and the year with type as facets and their variations with each types
+
+
+```{r , message=FALSE, warning=FALSE}
+scatter = ggplot(data = finaldf) +   geom_point(mapping = aes(x = year, y = Costs_without_null*0.001, color = Type))+
+  facet_wrap(~ Type, nrow = 4, shrink = FALSE)+ ylab("Cost($K)")+ylim(-100,1500)
+scatter +theme(axis.text.x = element_text(angle = 90))+ggtitle("scatter plot for types of aircrafts with costs replacing null values")
+```
+
